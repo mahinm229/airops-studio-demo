@@ -36,7 +36,7 @@ textarea{resize:none}
 ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
 ::-webkit-scrollbar-thumb:hover{background:var(--border2)}
 
-/* ===== NEW SECURITY WATERMARK CANVAS (সবকিছুর ওপরে) ===== */
+/* ===== Dynamic watermark canvas – always on top ===== */
 #wmCanvas {
     position: fixed;
     top: 0;
@@ -53,20 +53,7 @@ body.recording-detected #wmCanvas {
     opacity: 0.45 !important;
 }
 
-body.corrupted::after {
-    content: '⛔ INTEGRITY BREACH · SESSION LOCKED';
-    position: fixed;
-    inset: 0;
-    z-index: 99999999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.92);
-    color: #EF4444;
-    font-size: 28px;
-    font-weight: 800;
-    backdrop-filter: blur(40px);
-}
+/* Integrity breach session lock – removed entirely */
 
 .security-footer {
     position: fixed;
@@ -476,7 +463,7 @@ transition:left .25s ease;
 <body>
 
 <!-- ============================================================ -->
-<!-- NEW MASTER WATERMARK CANVAS (পুরনোটির জায়গায়)                 -->
+<!-- Master watermark canvas – replaces the old implementation     -->
 <!-- ============================================================ -->
 <canvas id="wmCanvas"></canvas>
 
@@ -820,10 +807,11 @@ transition:left .25s ease;
 
 <script>
 // ================================================================
-//  NEW ADVANCED SECURITY ENGINE (পুরনো ওয়াটারমার্ক রিমুভ করে ইনজেক্টেড)
+//  Advanced Security Engine – replaces the old watermark logic
+//  (Integrity breach session lock has been removed)
 // ================================================================
 
-// ----- ফেজ ১: ডায়নামিক ওয়াটারমার্ক (প্রতি ফ্রেমে পরিবর্তিত) -----
+// ----- Phase 1: Dynamic watermark (updates every frame) -----
 (function initWatermark() {
     const canvas = document.getElementById('wmCanvas');
     if (!canvas) return;
@@ -899,7 +887,7 @@ transition:left .25s ease;
     draw();
 })();
 
-// ----- ফেজ ২: প্রিন্টস্ক্রিন + কপি/পেস্ট/সেভ ব্লক -----
+// ----- Phase 2: Block PrintScreen + copy/paste/save keys -----
 (function blockSystemKeys() {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'PrintScreen') {
@@ -925,7 +913,7 @@ transition:left .25s ease;
     document.addEventListener('copy', (e) => { e.preventDefault(); alert('📵 Copying is prohibited.'); });
 })();
 
-// ----- ফেজ ৩: রেকর্ডিং / স্ক্রিন শেয়ার ডিটেক্ট -----
+// ----- Phase 3: Detect recording / screen share -----
 (function detectRecording() {
     setInterval(async function() {
         try {
@@ -948,13 +936,13 @@ transition:left .25s ease;
     }, 3000);
 })();
 
-// ----- ফেজ ৪: মিউটেশন আর্মার (ওয়াটারমার্ক ডিলিট করলে রি-জেনারেট) -----
+// ----- Phase 4: Mutation armor – restore watermark if removed -----
 (function mutationArmor() {
     const observer = new MutationObserver(function(mutations) {
         for (let m of mutations) {
             if (m.type === 'childList') {
                 const removed = Array.from(m.removedNodes);
-                if (removed.some(n => n.id === 'wmCanvas')) {
+                if (removed.some(n => n && n.id === 'wmCanvas')) {
                     const newCanvas = document.createElement('canvas');
                     newCanvas.id = 'wmCanvas';
                     newCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;opacity:0.16;';
@@ -967,7 +955,8 @@ transition:left .25s ease;
     observer.observe(document.body, { childList: true, subtree: true });
 })();
 
-// ----- ফেজ ৫: অ্যান্টি-ডিবাগ (কনসোল লক + ডিবাগার ট্র্যাপ) -----
+// ----- Phase 5: Anti‑debug (console lock + debugger trap) -----
+// Integrity breach check has been removed entirely
 (function antiDebug() {
     setInterval(function() { (function() {}).constructor('debugger')(); }, 1500);
 
@@ -979,10 +968,8 @@ transition:left .25s ease;
     };
     console.clear();
 
-    if (navigator.webdriver || navigator.plugins.length === 0) {
-        document.body.classList.add('corrupted');
-        throw new Error('Automated access denied.');
-    }
+    // (The following line has been removed – no corrupted class is added)
+    // if (navigator.webdriver || navigator.plugins.length === 0) { ... }
 
     const origLog = console.log;
     console.log = function(...args) {
@@ -991,7 +978,7 @@ transition:left .25s ease;
     };
 })();
 
-// ----- ফেজ ৬: ফুলস্ক্রিন ব্লক -----
+// ----- Phase 6: Block fullscreen -----
 (function blockFullscreen() {
     document.addEventListener('fullscreenchange', function() {
         if (document.fullscreenElement) {
@@ -1004,7 +991,7 @@ transition:left .25s ease;
     }
 })();
 
-// ----- ফেজ ৭: ফুটার ওয়াটারমার্ক (স্ক্রিনশটে নিচে বসে) -----
+// ----- Phase 7: Fixed footer watermark (visible in screenshots) -----
 (function fixedFooter() {
     const footer = document.createElement('div');
     footer.className = 'security-footer';
@@ -1016,20 +1003,20 @@ transition:left .25s ease;
     document.body.appendChild(footer);
 })();
 
-// ----- ফেজ ৮: সোর্স ভিউ ব্লক (view-source:) -----
+// ----- Phase 8: Block view-source: protocol -----
 (function blockViewSource() {
     if (window.location.protocol === 'view-source:') {
         window.location.href = window.location.href.replace('view-source:', '');
     }
 })();
 
-// ----- ফেজ ৯: ফাইনাল কনসোল প্রমাণ -----
+// ----- Phase 9: Final console proof -----
 console.log('✅ Public Security Shield Activated. Owner: Tufayl Ahamed Mahin');
 console.log('📧 212mahin229@gmail.com  |  📱 +880 17914-99215');
 console.log('%c🔒 Every frame contains a dynamic watermark. Captures are useless without a license.', 'color:#F59E0B; font-size:14px;');
 
 // ================================================================
-//  ORIGINAL APP SCRIPT (অপরিবর্তিত)
+//  ORIGINAL APP SCRIPT – unchanged
 // ================================================================
 
 // ===== DATA =====
@@ -1550,226 +1537,10 @@ function checkEditorGrid() {
 }
 window.addEventListener('resize', checkEditorGrid);
 checkEditorGrid();
-    // ================================================================
-//  NEW ADVANCED SECURITY ENGINE
+
 // ================================================================
-
-// ----- ফেজ ১: ডায়নামিক ওয়াটারমার্ক -----
-(function initWatermark() {
-    const canvas = document.getElementById('wmCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const owner = "Tufayl Ahamed Mahin";
-    const email = "212mahin229@gmail.com";
-    const phone = "+880 17914-99215";
-    const baseText = `${owner}  |  ${email}  |  ${phone}`;
-    let frame = 0;
-
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    function draw() {
-        const w = canvas.width;
-        const h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('bn-BD', { hour12: false });
-        const dateStr = now.toLocaleDateString('bn-BD');
-        const dynamicText = `${baseText}  |  ${dateStr} ${timeStr}`;
-
-        ctx.save();
-        ctx.translate(w / 2, h / 2);
-        const angle = -Math.PI / 5 + Math.sin(frame * 0.005) * 0.02;
-        ctx.rotate(angle);
-
-        const fontSize = Math.max(18, Math.min(w, h) / 30);
-        ctx.font = `bold ${fontSize}px "Courier New", monospace`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        const grad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
-        grad.addColorStop(0, 'rgba(165, 180, 252, 0.85)');
-        grad.addColorStop(0.5, 'rgba(192, 132, 252, 0.85)');
-        grad.addColorStop(1, 'rgba(99, 102, 241, 0.85)');
-        ctx.fillStyle = grad;
-        ctx.shadowColor = 'rgba(99, 102, 241, 0.4)';
-        ctx.shadowBlur = 12;
-
-        const gapX = fontSize * 13;
-        const gapY = fontSize * 6.5;
-        const offsetX = Math.sin(frame * 0.02) * fontSize * 1.8;
-        const offsetY = Math.cos(frame * 0.015) * fontSize * 1.4;
-
-        for (let x = -w * 0.8; x < w * 1.2; x += gapX) {
-            for (let y = -h * 0.8; y < h * 1.2; y += gapY) {
-                ctx.fillText(dynamicText, x + offsetX, y + offsetY);
-            }
-        }
-
-        ctx.font = `bold ${fontSize * 0.55}px "Courier New", monospace`;
-        ctx.shadowBlur = 6;
-        const smallGapX = fontSize * 6.5;
-        const smallGapY = fontSize * 3.2;
-        for (let x = -w * 0.8; x < w * 1.2; x += smallGapX) {
-            for (let y = -h * 0.8; y < h * 1.2; y += smallGapY) {
-                ctx.fillText(`🔒 ${owner}`, x + offsetX * 0.5, y + offsetY * 0.5);
-            }
-        }
-
-        ctx.restore();
-        frame++;
-        requestAnimationFrame(draw);
-    }
-    draw();
-})();
-
-// ----- ফেজ ২: প্রিন্টস্ক্রিন + কপি/পেস্ট/সেভ ব্লক -----
-(function blockSystemKeys() {
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'PrintScreen') {
-            e.preventDefault();
-            alert('⛔ Screenshot blocked! Protected by Tufayl Ahamed Mahin.');
-            try {
-                navigator.clipboard.writeText('UNAUTHORIZED SCREENSHOT – Contact: 212mahin229@gmail.com | +880 17914-99215');
-            } catch (_) {}
-            return false;
-        }
-        if (e.key === 'F12') { e.preventDefault(); return false; }
-        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) { e.preventDefault(); return false; }
-        if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); return false; }
-        if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); return false; }
-        if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) { e.preventDefault(); return false; }
-        if (e.metaKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); return false; }
-        return true;
-    });
-
-    document.addEventListener('contextmenu', function(e) { e.preventDefault(); alert('🛡️ Right‑click disabled.'); return false; });
-    document.addEventListener('selectstart', (e) => e.preventDefault());
-    document.addEventListener('dragstart', (e) => e.preventDefault());
-    document.addEventListener('copy', (e) => { e.preventDefault(); alert('📵 Copying is prohibited.'); });
-})();
-
-// ----- ফেজ ৩: রেকর্ডিং / স্ক্রিন শেয়ার ডিটেক্ট -----
-(function detectRecording() {
-    setInterval(async function() {
-        try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const hasScreenShare = devices.some(d =>
-                d.kind === 'videoinput' && d.label && d.label.toLowerCase().includes('screen')
-            );
-            document.body.classList.toggle('recording-detected', hasScreenShare);
-        } catch (_) {}
-    }, 4000);
-
-    let lastW = window.innerWidth,
-        lastH = window.innerHeight;
-    setInterval(function() {
-        const dw = Math.abs(window.innerWidth - lastW);
-        const dh = Math.abs(window.innerHeight - lastH);
-        document.body.classList.toggle('recording-detected', dw > 60 || dh > 60);
-        lastW = window.innerWidth;
-        lastH = window.innerHeight;
-    }, 3000);
-})();
-
-// ----- ফেজ ৪: মিউটেশন আর্মার (ওয়াটারমার্ক ডিলিট করলে রি-জেনারেট) -----
-(function mutationArmor() {
-    const observer = new MutationObserver(function(mutations) {
-        for (let m of mutations) {
-            if (m.type === 'childList') {
-                const removed = Array.from(m.removedNodes);
-                if (removed.some(n => n && n.id === 'wmCanvas')) {
-                    const newCanvas = document.createElement('canvas');
-                    newCanvas.id = 'wmCanvas';
-                    newCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;opacity:0.16;';
-                    document.body.appendChild(newCanvas);
-                    location.reload();
-                }
-            }
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-
-// ----- ফেজ ৫: অ্যান্টি-ডিবাগ (কনসোল লক + ডিবাগার ট্র্যাপ) -----
-(function antiDebug() {
-    setInterval(function() { (function() {}).constructor('debugger')(); }, 1500);
-
-    const origClear = console.clear;
-    console.clear = function() {
-        origClear.call(console);
-        console.log('%c🛡️ Tufayl Ahamed Mahin – Protected Shield', 'font-size:18px; font-weight:bold; color:#818CF8;');
-        console.log('%c📧 212mahin229@gmail.com  |  📱 +880 17914-99215', 'font-size:14px; color:#34D399;');
-    };
-    console.clear();
-
-    if (navigator.webdriver || navigator.plugins.length === 0) {
-        document.body.classList.add('corrupted');
-        throw new Error('Automated access denied.');
-    }
-
-    const origLog = console.log;
-    console.log = function(...args) {
-        origLog.apply(console, ['[TAM-SECURE]', ...args]);
-        origLog.apply(console, ['%c🔒 Tufayl Ahamed Mahin', 'color:#A5B4FC; font-weight:bold;']);
-    };
-})();
-
-// ----- ফেজ ৬: ফুলস্ক্রিন ব্লক -----
-(function blockFullscreen() {
-    document.addEventListener('fullscreenchange', function() {
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-            alert('⛔ Fullscreen disabled.');
-        }
-    });
-    if (document.pictureInPictureEnabled) {
-        document.addEventListener('leavepictureinpicture', function(e) { e.preventDefault(); });
-    }
-})();
-
-// ----- ফেজ ৭: ফুটার ওয়াটারমার্ক (স্ক্রিনশটে নিচে বসে) -----
-(function fixedFooter() {
-    // চেক করি ফুটার ইতিমধ্যে আছে কিনা
-    if (document.querySelector('.security-footer')) return;
-    const footer = document.createElement('div');
-    footer.className = 'security-footer';
-    footer.style.cssText = `
-        position: fixed; bottom: 8px; left: 0; right: 0;
-        text-align: center; z-index: 99998;
-        font-size: 11px; font-family: monospace;
-        color: #94A3B8;
-        background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(4px);
-        padding: 5px 12px;
-        border-top: 1px solid #1E2232;
-        border-bottom: 1px solid #1E2232;
-        pointer-events: none;
-        letter-spacing: 0.3px;
-    `;
-    footer.innerHTML = `
-        🔒 <strong style="color:#818CF8;">Tufayl Ahamed Mahin</strong> ·
-        212mahin229@gmail.com · +880 17914-99215 ·
-        <span style="color:#475569;">${new Date().toLocaleString('bn-BD')}</span>
-    `;
-    document.body.appendChild(footer);
-})();
-
-// ----- ফেজ ৮: সোর্স ভিউ ব্লক (view-source:) -----
-(function blockViewSource() {
-    if (window.location.protocol === 'view-source:') {
-        window.location.href = window.location.href.replace('view-source:', '');
-    }
-})();
-
-// ----- ফেজ ৯: ফাইনাল কনসোল প্রমাণ -----
-console.log('✅ Public Security Shield Activated. Owner: Tufayl Ahamed Mahin');
-console.log('📧 212mahin229@gmail.com  |  📱 +880 17914-99215');
-console.log('%c🔒 Every frame contains a dynamic watermark. Captures are useless without a license.', 'color:#F59E0B; font-size:14px;');
+//  Security code is placed only once – no duplication needed
+// ================================================================
 </script>
 </body>
 </html>
