@@ -36,8 +36,56 @@ textarea{resize:none}
 ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
 ::-webkit-scrollbar-thumb:hover{background:var(--border2)}
 
-/* WATERMARK CANVAS */
-#wm-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.06}
+/* ===== NEW SECURITY WATERMARK CANVAS (সবকিছুর ওপরে) ===== */
+#wmCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 99999;
+    opacity: 0.16;
+    transition: opacity 0.3s;
+}
+
+body.recording-detected #wmCanvas {
+    opacity: 0.45 !important;
+}
+
+body.corrupted::after {
+    content: '⛔ INTEGRITY BREACH · SESSION LOCKED';
+    position: fixed;
+    inset: 0;
+    z-index: 99999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.92);
+    color: #EF4444;
+    font-size: 28px;
+    font-weight: 800;
+    backdrop-filter: blur(40px);
+}
+
+.security-footer {
+    position: fixed;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    z-index: 99998;
+    font-size: 11px;
+    font-family: monospace;
+    color: #94A3B8;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    padding: 5px 12px;
+    border-top: 1px solid #1E2232;
+    border-bottom: 1px solid #1E2232;
+    pointer-events: none;
+    letter-spacing: 0.3px;
+}
 
 /* LAYOUT */
 .app-shell{display:flex;height:100vh;position:relative;z-index:1}
@@ -121,16 +169,6 @@ color:var(--text2);display:flex;align-items:center;justify-content:center;
 font-size:14px;transition:all var(--transition);
 }
 .btn-icon:hover{background:var(--bg4);color:var(--text)}
-
-/* DEMO BANNER */
-.demo-banner{
-background:linear-gradient(90deg,rgba(99,102,241,.12),rgba(99,102,241,.06));
-border-bottom:1px solid rgba(99,102,241,.2);
-padding:8px 20px;font-size:12px;color:var(--text2);
-display:flex;align-items:center;gap:8px;flex-shrink:0;
-}
-.demo-banner i{color:var(--accent)}
-.demo-banner strong{color:var(--accent)}
 
 /* CONTENT AREA */
 .content{flex:1;overflow-y:auto;padding:24px}
@@ -398,15 +436,6 @@ padding:10px 12px;border-radius:8px;margin-bottom:12px;
 }
 .key-display code{flex:1;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text2);word-break:break-all}
 
-/* WATERMARK OVERLAY */
-.wm-fixed{
-position:fixed;bottom:20px;right:20px;z-index:9990;
-background:rgba(14,15,18,.7);backdrop-filter:blur(8px);
-border:1px solid var(--border2);border-radius:8px;
-padding:6px 12px;font-size:11px;color:var(--text3);
-pointer-events:none;white-space:nowrap;
-}
-
 /* EMPTY STATE */
 .empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
 .empty-state i{font-size:32px;margin-bottom:12px;display:block}
@@ -441,24 +470,15 @@ transition:left .25s ease;
 .topbar{padding:0 12px}
 .content{padding:16px}
 .search-wrap{display:none}
-.demo-banner{font-size:11px}
-}
-
-/* inline edit */
-.inline-edit-input{
-background:var(--bg3);border:1px solid var(--accent);
-border-radius:4px;padding:4px 8px;font-size:14px;font-weight:600;
-color:var(--text);margin-right:8px;
 }
 </style>
 </head>
 <body>
 
-<!-- CANVAS WATERMARK -->
-<canvas id="wm-canvas"></canvas>
-
-<!-- FIXED WATERMARK -->
-<div class="wm-fixed">🛡️ Tufayl Ahamed Mahin – Demo</div>
+<!-- ============================================================ -->
+<!-- NEW MASTER WATERMARK CANVAS (পুরনোটির জায়গায়)                 -->
+<!-- ============================================================ -->
+<canvas id="wmCanvas"></canvas>
 
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastCont"></div>
@@ -740,12 +760,6 @@ color:var(--text);margin-right:8px;
       </div>
     </div>
 
-    <!-- DEMO BANNER -->
-    <div class="demo-banner">
-      <i class="fas fa-shield-alt"></i>
-      <span><strong>DEMO MODE</strong> – Some actions are simulated. For production code & full design handoff, contact <strong>Tufayl Ahamed Mahin</strong>.</span>
-    </div>
-
     <!-- CONTENT -->
     <div class="content">
 
@@ -805,456 +819,737 @@ color:var(--text);margin-right:8px;
 </div>
 
 <script>
-// ===== CONSOLE PROTECTION =====
-console.log('%c⚠️ DESIGN DEMO – This file is protected. For production license, contact Tufayl Ahamed Mahin.','color:red;font-size:16px;font-weight:bold');
-console.log('%cAny unauthorized copying or redistribution is prohibited.','color:orange;font-size:13px');
+// ================================================================
+//  NEW ADVANCED SECURITY ENGINE (পুরনো ওয়াটারমার্ক রিমুভ করে ইনজেক্টেড)
+// ================================================================
 
-// ===== RIGHT CLICK PROTECTION =====
-document.addEventListener('contextmenu',e=>e.preventDefault());
+// ----- ফেজ ১: ডায়নামিক ওয়াটারমার্ক (প্রতি ফ্রেমে পরিবর্তিত) -----
+(function initWatermark() {
+    const canvas = document.getElementById('wmCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
 
-// ===== WATERMARK CANVAS =====
-(function(){
-  var c=document.getElementById('wm-canvas');
-  function draw(){
-    c.width=window.innerWidth;c.height=window.innerHeight;
-    var ctx=c.getContext('2d');
-    ctx.clearRect(0,0,c.width,c.height);
-    ctx.save();ctx.translate(c.width/2,c.height/2);ctx.rotate(-Math.PI/6);
-    ctx.font='bold 22px Inter,sans-serif';ctx.fillStyle='#8080ff';ctx.textAlign='center';
-    var txt='Tufayl Ahamed Mahin – DEMO';var gap=200;
-    for(var x=-c.width;x<c.width;x+=gap*2){
-      for(var y=-c.height;y<c.height;y+=120){
-        ctx.fillText(txt,x,y);
-      }
+    const owner = "Tufayl Ahamed Mahin";
+    const email = "212mahin229@gmail.com";
+    const phone = "+880 17914-99215";
+    const baseText = `${owner}  |  ${email}  |  ${phone}`;
+
+    let frame = 0;
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
     }
-    ctx.restore();
-  }
-  draw();window.addEventListener('resize',draw);
+    window.addEventListener('resize', resize);
+    resize();
+
+    function draw() {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('bn-BD', { hour12: false });
+        const dateStr = now.toLocaleDateString('bn-BD');
+        const dynamicText = `${baseText}  |  ${dateStr} ${timeStr}`;
+
+        ctx.save();
+        ctx.translate(w / 2, h / 2);
+        const angle = -Math.PI / 5 + Math.sin(frame * 0.005) * 0.02;
+        ctx.rotate(angle);
+
+        const fontSize = Math.max(18, Math.min(w, h) / 30);
+        ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const grad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+        grad.addColorStop(0, 'rgba(165, 180, 252, 0.85)');
+        grad.addColorStop(0.5, 'rgba(192, 132, 252, 0.85)');
+        grad.addColorStop(1, 'rgba(99, 102, 241, 0.85)');
+        ctx.fillStyle = grad;
+        ctx.shadowColor = 'rgba(99, 102, 241, 0.4)';
+        ctx.shadowBlur = 12;
+
+        const gapX = fontSize * 13;
+        const gapY = fontSize * 6.5;
+        const offsetX = Math.sin(frame * 0.02) * fontSize * 1.8;
+        const offsetY = Math.cos(frame * 0.015) * fontSize * 1.4;
+
+        for (let x = -w * 0.8; x < w * 1.2; x += gapX) {
+            for (let y = -h * 0.8; y < h * 1.2; y += gapY) {
+                ctx.fillText(dynamicText, x + offsetX, y + offsetY);
+            }
+        }
+
+        ctx.font = `bold ${fontSize * 0.55}px "Courier New", monospace`;
+        ctx.shadowBlur = 6;
+        const smallGapX = fontSize * 6.5;
+        const smallGapY = fontSize * 3.2;
+        for (let x = -w * 0.8; x < w * 1.2; x += smallGapX) {
+            for (let y = -h * 0.8; y < h * 1.2; y += smallGapY) {
+                ctx.fillText(`🔒 ${owner}`, x + offsetX * 0.5, y + offsetY * 0.5);
+            }
+        }
+
+        ctx.restore();
+        frame++;
+        requestAnimationFrame(draw);
+    }
+    draw();
 })();
 
+// ----- ফেজ ২: প্রিন্টস্ক্রিন + কপি/পেস্ট/সেভ ব্লক -----
+(function blockSystemKeys() {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'PrintScreen') {
+            e.preventDefault();
+            alert('⛔ Screenshot blocked! Protected by Tufayl Ahamed Mahin.');
+            try {
+                navigator.clipboard.writeText('UNAUTHORIZED SCREENSHOT – Contact: 212mahin229@gmail.com | +880 17914-99215');
+            } catch (_) {}
+            return false;
+        }
+        if (e.key === 'F12') { e.preventDefault(); return false; }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) { e.preventDefault(); return false; }
+        if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); return false; }
+        if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); return false; }
+        if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) { e.preventDefault(); return false; }
+        if (e.metaKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); return false; }
+        return true;
+    });
+
+    document.addEventListener('contextmenu', function(e) { e.preventDefault(); alert('🛡️ Right‑click disabled.'); return false; });
+    document.addEventListener('selectstart', (e) => e.preventDefault());
+    document.addEventListener('dragstart', (e) => e.preventDefault());
+    document.addEventListener('copy', (e) => { e.preventDefault(); alert('📵 Copying is prohibited.'); });
+})();
+
+// ----- ফেজ ৩: রেকর্ডিং / স্ক্রিন শেয়ার ডিটেক্ট -----
+(function detectRecording() {
+    setInterval(async function() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const hasScreenShare = devices.some(d =>
+                d.kind === 'videoinput' && d.label && d.label.toLowerCase().includes('screen')
+            );
+            document.body.classList.toggle('recording-detected', hasScreenShare);
+        } catch (_) {}
+    }, 4000);
+
+    let lastW = window.innerWidth,
+        lastH = window.innerHeight;
+    setInterval(function() {
+        const dw = Math.abs(window.innerWidth - lastW);
+        const dh = Math.abs(window.innerHeight - lastH);
+        document.body.classList.toggle('recording-detected', dw > 60 || dh > 60);
+        lastW = window.innerWidth;
+        lastH = window.innerHeight;
+    }, 3000);
+})();
+
+// ----- ফেজ ৪: মিউটেশন আর্মার (ওয়াটারমার্ক ডিলিট করলে রি-জেনারেট) -----
+(function mutationArmor() {
+    const observer = new MutationObserver(function(mutations) {
+        for (let m of mutations) {
+            if (m.type === 'childList') {
+                const removed = Array.from(m.removedNodes);
+                if (removed.some(n => n.id === 'wmCanvas')) {
+                    const newCanvas = document.createElement('canvas');
+                    newCanvas.id = 'wmCanvas';
+                    newCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;opacity:0.16;';
+                    document.body.appendChild(newCanvas);
+                    location.reload();
+                }
+            }
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+
+// ----- ফেজ ৫: অ্যান্টি-ডিবাগ (কনসোল লক + ডিবাগার ট্র্যাপ) -----
+(function antiDebug() {
+    setInterval(function() { (function() {}).constructor('debugger')(); }, 1500);
+
+    const origClear = console.clear;
+    console.clear = function() {
+        origClear.call(console);
+        console.log('%c🛡️ Tufayl Ahamed Mahin – Protected Shield', 'font-size:18px; font-weight:bold; color:#818CF8;');
+        console.log('%c📧 212mahin229@gmail.com  |  📱 +880 17914-99215', 'font-size:14px; color:#34D399;');
+    };
+    console.clear();
+
+    if (navigator.webdriver || navigator.plugins.length === 0) {
+        document.body.classList.add('corrupted');
+        throw new Error('Automated access denied.');
+    }
+
+    const origLog = console.log;
+    console.log = function(...args) {
+        origLog.apply(console, ['[TAM-SECURE]', ...args]);
+        origLog.apply(console, ['%c🔒 Tufayl Ahamed Mahin', 'color:#A5B4FC; font-weight:bold;']);
+    };
+})();
+
+// ----- ফেজ ৬: ফুলস্ক্রিন ব্লক -----
+(function blockFullscreen() {
+    document.addEventListener('fullscreenchange', function() {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+            alert('⛔ Fullscreen disabled.');
+        }
+    });
+    if (document.pictureInPictureEnabled) {
+        document.addEventListener('leavepictureinpicture', function(e) { e.preventDefault(); });
+    }
+})();
+
+// ----- ফেজ ৭: ফুটার ওয়াটারমার্ক (স্ক্রিনশটে নিচে বসে) -----
+(function fixedFooter() {
+    const footer = document.createElement('div');
+    footer.className = 'security-footer';
+    footer.innerHTML = `
+        🔒 <strong style="color:#818CF8;">Tufayl Ahamed Mahin</strong> ·
+        212mahin229@gmail.com · +880 17914-99215 ·
+        <span style="color:#475569;">${new Date().toLocaleString('bn-BD')}</span>
+    `;
+    document.body.appendChild(footer);
+})();
+
+// ----- ফেজ ৮: সোর্স ভিউ ব্লক (view-source:) -----
+(function blockViewSource() {
+    if (window.location.protocol === 'view-source:') {
+        window.location.href = window.location.href.replace('view-source:', '');
+    }
+})();
+
+// ----- ফেজ ৯: ফাইনাল কনসোল প্রমাণ -----
+console.log('✅ Public Security Shield Activated. Owner: Tufayl Ahamed Mahin');
+console.log('📧 212mahin229@gmail.com  |  📱 +880 17914-99215');
+console.log('%c🔒 Every frame contains a dynamic watermark. Captures are useless without a license.', 'color:#F59E0B; font-size:14px;');
+
+// ================================================================
+//  ORIGINAL APP SCRIPT (অপরিবর্তিত)
+// ================================================================
+
 // ===== DATA =====
-var promptData=[
-  {id:1,title:'Customer Support Bot',desc:'Handles tier-1 customer queries with empathy and precision. Escalates complex issues automatically.',model:'gpt4',temp:0.6,status:'Live',runs:2847,lastEdit:'2h ago',type:'support',
-    text:'You are a helpful customer support agent for {{product}}. Address the customer {{user_name}} with empathy and professionalism. If they reference order {{order_id}}, look up their order status and provide accurate updates. Always offer a resolution path and escalate if needed.'},
-  {id:2,title:'Content Generator (Blog)',desc:'SEO-optimized blog content generator with tone control and keyword insertion for marketing teams.',model:'claude',temp:0.85,status:'Draft',runs:431,lastEdit:'1d ago',type:'blog',
-    text:'You are a skilled content writer specializing in SEO-optimized blog posts. Write a compelling, well-structured article about {{topic}} for the user {{user_name}}. Use subheadings, bullet points where appropriate, and naturally incorporate keywords. Aim for 800-1200 words.'}
+var promptData = [
+    { id: 1, title: 'Customer Support Bot', desc: 'Handles tier-1 customer queries with empathy and precision. Escalates complex issues automatically.', model: 'gpt4', temp: 0.6, status: 'Live', runs: 2847, lastEdit: '2h ago', type: 'support',
+        text: 'You are a helpful customer support agent for {{product}}. Address the customer {{user_name}} with empathy and professionalism. If they reference order {{order_id}}, look up their order status and provide accurate updates. Always offer a resolution path and escalate if needed.' },
+    { id: 2, title: 'Content Generator (Blog)', desc: 'SEO-optimized blog content generator with tone control and keyword insertion for marketing teams.', model: 'claude', temp: 0.85, status: 'Draft', runs: 431, lastEdit: '1d ago', type: 'blog',
+        text: 'You are a skilled content writer specializing in SEO-optimized blog posts. Write a compelling, well-structured article about {{topic}} for the user {{user_name}}. Use subheadings, bullet points where appropriate, and naturally incorporate keywords. Aim for 800-1200 words.' }
 ];
 
-var toolsData=[
-  {id:'gdrive',name:'Google Drive',desc:'Access and index documents from your Drive for AI context.',icon:'fab fa-google-drive',iconBg:'#1a3a2a',iconColor:'#34A853',connected:true},
-  {id:'slack',name:'Slack',desc:'Send AI-generated responses and alerts directly to channels.',icon:'fab fa-slack',iconBg:'#2a1a3a',iconColor:'#ECB22E',connected:false},
-  {id:'zapier',name:'Zapier',desc:'Automate workflows by triggering AI prompts via Zapier hooks.',icon:'fas fa-bolt',iconBg:'#3a2a1a',iconColor:'#FF4A00',connected:false}
+var toolsData = [
+    { id: 'gdrive', name: 'Google Drive', desc: 'Access and index documents from your Drive for AI context.', icon: 'fab fa-google-drive', iconBg: '#1a3a2a', iconColor: '#34A853', connected: true },
+    { id: 'slack', name: 'Slack', desc: 'Send AI-generated responses and alerts directly to channels.', icon: 'fab fa-slack', iconBg: '#2a1a3a', iconColor: '#ECB22E', connected: false },
+    { id: 'zapier', name: 'Zapier', desc: 'Automate workflows by triggering AI prompts via Zapier hooks.', icon: 'fas fa-bolt', iconBg: '#3a2a1a', iconColor: '#FF4A00', connected: false }
 ];
 
-var assistantsData=[
-  {id:'sa',name:'Support Agent',tags:['Live','GPT-4','Customer Service'],icon:'fas fa-headset',iconBg:'linear-gradient(135deg,#1a3a5c,#1e40af)'},
-  {id:'bw',name:'Blog Writer',tags:['Draft','Claude 3','Marketing'],icon:'fas fa-pen-nib',iconBg:'linear-gradient(135deg,#3a1a5c,#7c3aed)'}
+var assistantsData = [
+    { id: 'sa', name: 'Support Agent', tags: ['Live', 'GPT-4', 'Customer Service'], icon: 'fas fa-headset', iconBg: 'linear-gradient(135deg,#1a3a5c,#1e40af)' },
+    { id: 'bw', name: 'Blog Writer', tags: ['Draft', 'Claude 3', 'Marketing'], icon: 'fas fa-pen-nib', iconBg: 'linear-gradient(135deg,#3a1a5c,#7c3aed)' }
 ];
 
-var mktTools=[
-  {name:'Notion',icon:'📝'},{name:'Airtable',icon:'📊'},{name:'HubSpot',icon:'🧲'},
-  {name:'Figma',icon:'🎨'},{name:'GitHub',icon:'💻'},{name:'Salesforce',icon:'☁️'},
-  {name:'Zoom',icon:'📹'},{name:'Stripe',icon:'💳'}
+var mktTools = [
+    { name: 'Notion', icon: '📝' }, { name: 'Airtable', icon: '📊' }, { name: 'HubSpot', icon: '🧲' },
+    { name: 'Figma', icon: '🎨' }, { name: 'GitHub', icon: '💻' }, { name: 'Salesforce', icon: '☁️' },
+    { name: 'Zoom', icon: '📹' }, { name: 'Stripe', icon: '💳' }
 ];
 
-var modelLabels={gpt4:'GPT-4 Turbo',claude:'Claude 3 Opus',gemini:'Gemini Pro 1.5'};
+var modelLabels = { gpt4: 'GPT-4 Turbo', claude: 'Claude 3 Opus', gemini: 'Gemini Pro 1.5' };
 
 // ===== STATE =====
-var curEditId=null;var sidebarCollapsed=false;
-var settings={
-  workspaceName:localStorage.getItem('ws_name')||'My Workspace',
-  defaultModel:localStorage.getItem('def_model')||'gpt4',
-  darkMode:localStorage.getItem('dark_mode')!=='false',
-  autoSave:localStorage.getItem('auto_save')==='true',
-  apiKeys:{openai:localStorage.getItem('key_openai')||'',anthropic:localStorage.getItem('key_anthropic')||'',google:localStorage.getItem('key_google')||''}
+var curEditId = null;
+var sidebarCollapsed = false;
+var settings = {
+    workspaceName: localStorage.getItem('ws_name') || 'My Workspace',
+    defaultModel: localStorage.getItem('def_model') || 'gpt4',
+    darkMode: localStorage.getItem('dark_mode') !== 'false',
+    autoSave: localStorage.getItem('auto_save') === 'true',
+    apiKeys: { openai: localStorage.getItem('key_openai') || '', anthropic: localStorage.getItem('key_anthropic') || '',
+        google: localStorage.getItem('key_google') || '' }
 };
-var curApiKeyField='';
+var curApiKeyField = '';
 
 // Load tool states
-toolsData.forEach(function(t){
-  var s=localStorage.getItem('tool_'+t.id);
-  if(s!==null)t.connected=s==='true';
+toolsData.forEach(function(t) {
+    var s = localStorage.getItem('tool_' + t.id);
+    if (s !== null) t.connected = s === 'true';
 });
 
 // ===== TERMS MODAL =====
-if(!sessionStorage.getItem('agreed')){
-  openModal('termsModal');
+if (!sessionStorage.getItem('agreed')) {
+    openModal('termsModal');
 }
-document.getElementById('termsAgree').onclick=function(){
-  sessionStorage.setItem('agreed','1');
-  closeModal('termsModal');
+document.getElementById('termsAgree').onclick = function() {
+    sessionStorage.setItem('agreed', '1');
+    closeModal('termsModal');
 };
 
 // ===== DARK MODE INIT =====
-if(!settings.darkMode)document.body.classList.add('light-mode');
+if (!settings.darkMode) document.body.classList.add('light-mode');
 
 // ===== MODAL HELPERS =====
-function openModal(id){
-  document.getElementById(id).classList.add('open');
+function openModal(id) {
+    document.getElementById(id).classList.add('open');
 }
-function closeModal(id){
-  document.getElementById(id).classList.remove('open');
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
 }
-document.querySelectorAll('.modal-overlay').forEach(function(el){
-  el.addEventListener('click',function(e){
-    if(e.target===el&&el.id!=='termsModal')closeModal(el.id);
-  });
-});
-document.addEventListener('keydown',function(e){
-  if(e.key==='Escape'){
-    document.querySelectorAll('.modal-overlay.open').forEach(function(el){
-      if(el.id!=='termsModal')closeModal(el.id);
+document.querySelectorAll('.modal-overlay').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+        if (e.target === el && el.id !== 'termsModal') closeModal(el.id);
     });
-  }
-  if((e.ctrlKey||e.metaKey)&&e.key==='s'){
-    e.preventDefault();
-    if(document.getElementById('editorModal').classList.contains('open'))savePrompt();
-  }
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
+            if (el.id !== 'termsModal') closeModal(el.id);
+        });
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (document.getElementById('editorModal').classList.contains('open')) savePrompt();
+    }
 });
 
 // ===== TOAST =====
-function showToast(msg,type,icon){
-  type=type||'success';
-  var icons={success:'fas fa-check-circle',error:'fas fa-exclamation-circle',info:'fas fa-info-circle',warn:'fas fa-exclamation-triangle'};
-  icon=icon||icons[type];
-  var t=document.createElement('div');
-  t.className='toast toast-'+type;
-  t.innerHTML='<i class="'+icon+'"></i><span>'+msg+'</span>';
-  document.getElementById('toastCont').appendChild(t);
-  setTimeout(function(){t.classList.add('show')},10);
-  setTimeout(function(){
-    t.classList.remove('show');
-    setTimeout(function(){t.remove()},300);
-  },3200);
+function showToast(msg, type, icon) {
+    type = type || 'success';
+    var icons = { success: 'fas fa-check-circle', error: 'fas fa-exclamation-circle', info: 'fas fa-info-circle',
+        warn: 'fas fa-exclamation-triangle' };
+    icon = icon || icons[type];
+    var t = document.createElement('div');
+    t.className = 'toast toast-' + type;
+    t.innerHTML = '<i class="' + icon + '"></i><span>' + msg + '</span>';
+    document.getElementById('toastCont').appendChild(t);
+    setTimeout(function() { t.classList.add('show') }, 10);
+    setTimeout(function() {
+        t.classList.remove('show');
+        setTimeout(function() { t.remove() }, 300);
+    }, 3200);
 }
 
 // ===== SIDEBAR =====
-function toggleSidebar(){
-  sidebarCollapsed=!sidebarCollapsed;
-  var sb=document.getElementById('sidebar');
-  sb.classList.toggle('collapsed',sidebarCollapsed);
-  document.getElementById('toggleIcon').className=sidebarCollapsed?'fas fa-chevron-right':'fas fa-chevron-left';
-  localStorage.setItem('sb_col',sidebarCollapsed?'1':'0');
+function toggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+    var sb = document.getElementById('sidebar');
+    sb.classList.toggle('collapsed', sidebarCollapsed);
+    document.getElementById('toggleIcon').className = sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+    localStorage.setItem('sb_col', sidebarCollapsed ? '1' : '0');
 }
-function openMobileSidebar(){
-  document.getElementById('sidebar').classList.add('mobile-open');
-  var o=document.getElementById('sidebarOverlay');
-  o.style.display='block';setTimeout(function(){o.classList.add('visible')},10);
+
+function openMobileSidebar() {
+    document.getElementById('sidebar').classList.add('mobile-open');
+    var o = document.getElementById('sidebarOverlay');
+    o.style.display = 'block';
+    setTimeout(function() { o.classList.add('visible') }, 10);
 }
-function closeMobileSidebar(){
-  document.getElementById('sidebar').classList.remove('mobile-open');
-  var o=document.getElementById('sidebarOverlay');
-  o.classList.remove('visible');setTimeout(function(){o.style.display='none'},200);
+
+function closeMobileSidebar() {
+    document.getElementById('sidebar').classList.remove('mobile-open');
+    var o = document.getElementById('sidebarOverlay');
+    o.classList.remove('visible');
+    setTimeout(function() { o.style.display = 'none' }, 200);
 }
-if(localStorage.getItem('sb_col')==='1'){
-  sidebarCollapsed=true;
-  document.getElementById('sidebar').classList.add('collapsed');
-  document.getElementById('toggleIcon').className='fas fa-chevron-right';
+if (localStorage.getItem('sb_col') === '1') {
+    sidebarCollapsed = true;
+    document.getElementById('sidebar').classList.add('collapsed');
+    document.getElementById('toggleIcon').className = 'fas fa-chevron-right';
 }
 
 // ===== NAVIGATION =====
-var views=['prompts','tools','assistants','settings'];
-var breadcrumbs={prompts:'Dashboard <span>/ Prompts</span>',tools:'Tools <span>/ Connectors</span>',assistants:'Assistants <span>/ Overview</span>',settings:'Settings <span>/ Workspace</span>'};
-function switchView(v){
-  views.forEach(function(x){
-    document.getElementById('view-'+x).classList.toggle('active',x===v);
-    document.getElementById('nav-'+x).classList.toggle('active',x===v);
-  });
-  document.getElementById('breadcrumb').innerHTML=breadcrumbs[v];
-  closeMobileSidebar();
+var views = ['prompts', 'tools', 'assistants', 'settings'];
+var breadcrumbs = { prompts: 'Dashboard <span>/ Prompts</span>', tools: 'Tools <span>/ Connectors</span>',
+    assistants: 'Assistants <span>/ Overview</span>', settings: 'Settings <span>/ Workspace</span>' };
+
+function switchView(v) {
+    views.forEach(function(x) {
+        document.getElementById('view-' + x).classList.toggle('active', x === v);
+        document.getElementById('nav-' + x).classList.toggle('active', x === v);
+    });
+    document.getElementById('breadcrumb').innerHTML = breadcrumbs[v];
+    closeMobileSidebar();
 }
 
 // ===== RENDER PROMPTS =====
-function renderPrompts(filter){
-  filter=(filter||'').toLowerCase();
-  var g=document.getElementById('promptsGrid');g.innerHTML='';
-  var shown=0;
-  promptData.forEach(function(p){
-    if(filter&&p.title.toLowerCase().indexOf(filter)<0&&p.desc.toLowerCase().indexOf(filter)<0)return;
-    shown++;
-    var d=document.createElement('div');d.className='prompt-card';
-    d.innerHTML='<div class="card-top"><div><div class="card-title">'+p.title+'</div><div class="card-badges"><span class="badge '+(p.status==='Live'?'badge-live':'badge-draft')+'"><i class="fas fa-circle" style="font-size:7px"></i> '+p.status+'</span><span class="badge badge-model">'+modelLabels[p.model]+'</span></div></div></div><p class="card-desc">'+p.desc+'</p><div class="card-meta"><span><i class="fas fa-clock"></i>'+p.lastEdit+'</span><span><i class="fas fa-play"></i>'+p.runs.toLocaleString()+' runs</span></div><button class="btn btn-secondary btn-sm" onclick="openEditor('+p.id+')"><i class="fas fa-edit"></i> Edit Prompt</button>';
-    g.appendChild(d);
-  });
-  if(shown===0){
-    g.innerHTML='<div class="empty-state" style="grid-column:1/-1"><i class="fas fa-search"></i><p>No prompts match "'+filter+'"</p></div>';
-  }
+function renderPrompts(filter) {
+    filter = (filter || '').toLowerCase();
+    var g = document.getElementById('promptsGrid');
+    g.innerHTML = '';
+    var shown = 0;
+    promptData.forEach(function(p) {
+        if (filter && p.title.toLowerCase().indexOf(filter) < 0 && p.desc.toLowerCase().indexOf(filter) < 0) return;
+        shown++;
+        var d = document.createElement('div');
+        d.className = 'prompt-card';
+        d.innerHTML = '<div class="card-top"><div><div class="card-title">' + p.title + '</div><div class="card-badges"><span class="badge ' + (p.status === 'Live' ? 'badge-live' :
+                'badge-draft') + '"><i class="fas fa-circle" style="font-size:7px"></i> ' + p.status + '</span><span class="badge badge-model">' + modelLabels[p
+                .model] + '</span></div></div></div><p class="card-desc">' + p.desc + '</p><div class="card-meta"><span><i class="fas fa-clock"></i>' + p
+            .lastEdit + '</span><span><i class="fas fa-play"></i>' + p.runs.toLocaleString() + ' runs</span></div><button class="btn btn-secondary btn-sm" onclick="openEditor(' +
+            p.id + ')"><i class="fas fa-edit"></i> Edit Prompt</button>';
+        g.appendChild(d);
+    });
+    if (shown === 0) {
+        g.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><i class="fas fa-search"></i><p>No prompts match "' +
+            filter + '"</p></div>';
+    }
 }
 renderPrompts();
 
-function filterCards(v){renderPrompts(v);}
+function filterCards(v) { renderPrompts(v); }
 
 // ===== EDITOR =====
-function openEditor(id){
-  var p=promptData.find(function(x){return x.id===id;});
-  if(!p)return;
-  curEditId=id;
-  document.getElementById('editorTitle').textContent='Edit: '+p.title;
-  document.getElementById('sysPromptTA').value=p.text;
-  document.getElementById('editorTitleInput').value=p.title;
-  document.getElementById('modelSelect').value=p.model;
-  document.getElementById('tempSlider').value=p.temp;
-  document.getElementById('tempVal').textContent=p.temp;
-  document.getElementById('testOutput').innerHTML='<span style="color:var(--text3);font-size:12px">Click "Test Run" to preview output...</span>';
-  closeModal('newPromptModal');
-  openModal('editorModal');
+function openEditor(id) {
+    var p = promptData.find(function(x) { return x.id === id; });
+    if (!p) return;
+    curEditId = id;
+    document.getElementById('editorTitle').textContent = 'Edit: ' + p.title;
+    document.getElementById('sysPromptTA').value = p.text;
+    document.getElementById('editorTitleInput').value = p.title;
+    document.getElementById('modelSelect').value = p.model;
+    document.getElementById('tempSlider').value = p.temp;
+    document.getElementById('tempVal').textContent = p.temp;
+    document.getElementById('testOutput').innerHTML = '<span style="color:var(--text3);font-size:12px">Click "Test Run" to preview output...</span>';
+    closeModal('newPromptModal');
+    openModal('editorModal');
 }
-function openEditorFromTemplate(type){
-  var p=promptData.find(function(x){return x.type===type;});
-  if(p)openEditor(p.id);
-  else showToast('Template coming soon','info');
+
+function openEditorFromTemplate(type) {
+    var p = promptData.find(function(x) { return x.type === type; });
+    if (p) openEditor(p.id);
+    else showToast('Template coming soon', 'info');
 }
-function importLibraryDemo(){openEditorFromTemplate('support');}
-function importLibraryDemo2(){closeModal('newPromptModal');showToast('Template library would open here (Demo)','info');}
-function insertVar(v){
-  var ta=document.getElementById('sysPromptTA');
-  var s=ta.selectionStart;var e=ta.selectionEnd;
-  ta.value=ta.value.substring(0,s)+v+ta.value.substring(e);
-  ta.selectionStart=ta.selectionEnd=s+v.length;ta.focus();
+
+function importLibraryDemo() { openEditorFromTemplate('support'); }
+
+function importLibraryDemo2() { closeModal('newPromptModal');
+    showToast('Template library would open here (Demo)', 'info'); }
+
+function insertVar(v) {
+    var ta = document.getElementById('sysPromptTA');
+    var s = ta.selectionStart;
+    var e = ta.selectionEnd;
+    ta.value = ta.value.substring(0, s) + v + ta.value.substring(e);
+    ta.selectionStart = ta.selectionEnd = s + v.length;
+    ta.focus();
 }
 
 // ===== TEST RUN =====
-var testOutputs={
-  support:"Hello {{user_name}}, thank you for reaching out to our support team!\n\nI can see your order {{order_id}} for {{product}} is currently in transit. Our records show it was dispatched yesterday and should arrive within 2 business days.\n\nIs there anything else I can assist you with today?",
-  blog:"# The Ultimate Guide to {{topic}}\n\nWelcome, {{user_name}}! In today's article, we'll dive deep into everything you need to know about {{topic}}.\n\n## Why {{topic}} Matters\n\nIn the digital age, understanding {{topic}} has become essential for businesses and individuals alike. Here's what makes it so impactful...\n\n## Key Takeaways\n\n- Increased efficiency by 40%\n- Better engagement metrics\n- Scalable results over time"
+var testOutputs = {
+    support: "Hello {{user_name}}, thank you for reaching out to our support team!\n\nI can see your order {{order_id}} for {{product}} is currently in transit. Our records show it was dispatched yesterday and should arrive within 2 business days.\n\nIs there anything else I can assist you with today?",
+    blog: "# The Ultimate Guide to {{topic}}\n\nWelcome, {{user_name}}! In today's article, we'll dive deep into everything you need to know about {{topic}}.\n\n## Why {{topic}} Matters\n\nIn the digital age, understanding {{topic}} has become essential for businesses and individuals alike. Here's what makes it so impactful...\n\n## Key Takeaways\n\n- Increased efficiency by 40%\n- Better engagement metrics\n- Scalable results over time"
 };
-var modelTips={gpt4:'',claude:'\n\n[Claude: Structured for clarity and accuracy]',gemini:'\n\n[Gemini: Cross-referenced with current web data]'};
-function runTest(){
-  var ta=document.getElementById('testOutput');
-  var p=promptData.find(function(x){return x.id===curEditId;});
-  var type=p?p.type:'support';
-  var model=document.getElementById('modelSelect').value;
-  var temp=parseFloat(document.getElementById('tempSlider').value);
-  ta.innerHTML='<div class="spinner-wrap"><div class="spinner"></div> <span>Running test...</span></div>';
-  setTimeout(function(){
-    var base=testOutputs[type]||testOutputs.support;
-    var vals={'{{user_name}}':'Alex Johnson','{{order_id}}':'ORD-84729','{{product}}':'Premium Plan','{{topic}}':'AI-Powered Marketing'};
-    Object.keys(vals).forEach(function(k){base=base.split(k).join(vals[k]);});
-    base+=modelTips[model]||'';
-    if(temp>0.75)base+='\n\n💡 Pro tip: Consider A/B testing this response for optimal engagement.';
-    if(model==='gpt4')base=base.replace('Hello','Dear');
-    typewrite(ta,base);
-  },800);
+var modelTips = { gpt4: '', claude: '\n\n[Claude: Structured for clarity and accuracy]',
+    gemini: '\n\n[Gemini: Cross-referenced with current web data]' };
+
+function runTest() {
+    var ta = document.getElementById('testOutput');
+    var p = promptData.find(function(x) { return x.id === curEditId; });
+    var type = p ? p.type : 'support';
+    var model = document.getElementById('modelSelect').value;
+    var temp = parseFloat(document.getElementById('tempSlider').value);
+    ta.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div> <span>Running test...</span></div>';
+    setTimeout(function() {
+        var base = testOutputs[type] || testOutputs.support;
+        var vals = { '{{user_name}}': 'Alex Johnson', '{{order_id}}': 'ORD-84729', '{{product}}': 'Premium Plan',
+            '{{topic}}': 'AI-Powered Marketing' };
+        Object.keys(vals).forEach(function(k) { base = base.split(k).join(vals[k]); });
+        base += modelTips[model] || '';
+        if (temp > 0.75) base += '\n\n💡 Pro tip: Consider A/B testing this response for optimal engagement.';
+        if (model === 'gpt4') base = base.replace('Hello', 'Dear');
+        typewrite(ta, base);
+    }, 800);
 }
-function typewrite(el,txt){
-  el.innerHTML='';
-  var i=0;var pre=document.createElement('span');pre.style.whiteSpace='pre-wrap';el.appendChild(pre);
-  var cur=document.createElement('span');cur.className='cursor';el.appendChild(cur);
-  function tick(){
-    if(i<=txt.length){pre.textContent=txt.substring(0,i);i++;setTimeout(tick,18);}
-    else{cur.remove();}
-  }
-  tick();
+
+function typewrite(el, txt) {
+    el.innerHTML = '';
+    var i = 0;
+    var pre = document.createElement('span');
+    pre.style.whiteSpace = 'pre-wrap';
+    el.appendChild(pre);
+    var cur = document.createElement('span');
+    cur.className = 'cursor';
+    el.appendChild(cur);
+
+    function tick() {
+        if (i <= txt.length) { pre.textContent = txt.substring(0, i);
+            i++;
+            setTimeout(tick, 18); } else { cur.remove(); }
+    }
+    tick();
 }
 
 // ===== SAVE PROMPT =====
-function savePrompt(){
-  var p=promptData.find(function(x){return x.id===curEditId;});
-  if(!p)return;
-  p.text=document.getElementById('sysPromptTA').value;
-  p.title=document.getElementById('editorTitleInput').value||p.title;
-  p.model=document.getElementById('modelSelect').value;
-  p.temp=parseFloat(document.getElementById('tempSlider').value);
-  p.lastEdit='just now';
-  renderPrompts();
-  closeModal('editorModal');
-  showToast('Prompt saved successfully','success');
+function savePrompt() {
+    var p = promptData.find(function(x) { return x.id === curEditId; });
+    if (!p) return;
+    p.text = document.getElementById('sysPromptTA').value;
+    p.title = document.getElementById('editorTitleInput').value || p.title;
+    p.model = document.getElementById('modelSelect').value;
+    p.temp = parseFloat(document.getElementById('tempSlider').value);
+    p.lastEdit = 'just now';
+    renderPrompts();
+    closeModal('editorModal');
+    showToast('Prompt saved successfully', 'success');
 }
 
 // ===== TOOLS =====
-function renderTools(){
-  var l=document.getElementById('toolsList');l.innerHTML='';
-  toolsData.forEach(function(t){
-    var d=document.createElement('div');d.className='tool-row';
-    var connected=t.connected;
-    d.innerHTML='<div class="tool-icon" style="background:'+t.iconBg+'"><i class="'+t.icon+'" style="color:'+t.iconColor+'"></i></div><div class="tool-info"><div class="tool-name">'+t.name+'</div><div class="tool-desc">'+t.desc+'</div></div><span class="badge '+(connected?'badge-connected':'badge-disconnected')+'">'+(connected?'Connected':'Not connected')+'</span><button class="btn '+(connected?'btn-danger btn-sm':'btn-secondary btn-sm')+'" onclick="toolAction(\''+t.id+'\')">'+(connected?'Disconnect':'Connect')+'</button>';
-    l.appendChild(d);
-  });
+function renderTools() {
+    var l = document.getElementById('toolsList');
+    l.innerHTML = '';
+    toolsData.forEach(function(t) {
+        var d = document.createElement('div');
+        d.className = 'tool-row';
+        var connected = t.connected;
+        d.innerHTML = '<div class="tool-icon" style="background:' + t.iconBg + '"><i class="' + t.icon +
+            '" style="color:' + t.iconColor + '"></i></div><div class="tool-info"><div class="tool-name">' + t
+            .name + '</div><div class="tool-desc">' + t.desc + '</div></div><span class="badge ' + (connected ?
+                'badge-connected' : 'badge-disconnected') + '">' + (connected ? 'Connected' : 'Not connected') +
+            '</span><button class="btn ' + (connected ? 'btn-danger btn-sm' : 'btn-secondary btn-sm') +
+            '" onclick="toolAction(\'' + t.id + '\')">' + (connected ? 'Disconnect' : 'Connect') + '</button>';
+        l.appendChild(d);
+    });
 }
 renderTools();
 
-function toolAction(id){
-  var t=toolsData.find(function(x){return x.id===id;});
-  if(!t)return;
-  if(t.connected){
-    document.getElementById('confirmMsg').textContent='Disconnect '+t.name+'?';
-    document.getElementById('confirmSub').textContent='You will lose access to '+t.name+' data in your prompts.';
-    document.getElementById('confirmYes').onclick=function(){
-      t.connected=false;
-      localStorage.setItem('tool_'+t.id,'false');
-      renderTools();closeModal('confirmModal');
-      showToast(t.name+' disconnected','warn');
-    };
-    openModal('confirmModal');
-  } else {
-    var icons={gdrive:'📁',slack:'💬',zapier:'⚡'};
-    document.getElementById('oauthIcon').textContent=icons[id]||'🔗';
-    document.getElementById('oauthTitle').textContent='Connecting to '+t.name;
-    document.getElementById('oauthDesc').textContent='Redirecting to '+t.name+' OAuth... (Demo)';
-    openModal('oauthModal');
-    setTimeout(function(){
-      t.connected=true;
-      localStorage.setItem('tool_'+t.id,'true');
-      renderTools();closeModal('oauthModal');
-      showToast(t.name+' connected successfully!','success');
-    },1800);
-  }
+function toolAction(id) {
+    var t = toolsData.find(function(x) { return x.id === id; });
+    if (!t) return;
+    if (t.connected) {
+        document.getElementById('confirmMsg').textContent = 'Disconnect ' + t.name + '?';
+        document.getElementById('confirmSub').textContent = 'You will lose access to ' + t.name +
+            ' data in your prompts.';
+        document.getElementById('confirmYes').onclick = function() {
+            t.connected = false;
+            localStorage.setItem('tool_' + t.id, 'false');
+            renderTools();
+            closeModal('confirmModal');
+            showToast(t.name + ' disconnected', 'warn');
+        };
+        openModal('confirmModal');
+    } else {
+        var icons = { gdrive: '📁', slack: '💬', zapier: '⚡' };
+        document.getElementById('oauthIcon').textContent = icons[id] || '🔗';
+        document.getElementById('oauthTitle').textContent = 'Connecting to ' + t.name;
+        document.getElementById('oauthDesc').textContent = 'Redirecting to ' + t.name + ' OAuth... (Demo)';
+        openModal('oauthModal');
+        setTimeout(function() {
+            t.connected = true;
+            localStorage.setItem('tool_' + t.id, 'true');
+            renderTools();
+            closeModal('oauthModal');
+            showToast(t.name + ' connected successfully!', 'success');
+        }, 1800);
+    }
 }
-function openMarketplace(){
-  var g=document.getElementById('mktGrid');g.innerHTML='';
-  mktTools.forEach(function(m){
-    var d=document.createElement('div');d.className='mkt-card';
-    d.innerHTML='<div class="mkt-card-icon">'+m.icon+'</div><div class="mkt-card-name">'+m.name+'</div><button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center" onclick="showToast(\'Demo: Request sent for '+m.name+'\',\'info\')">Request Access</button>';
-    g.appendChild(d);
-  });
-  openModal('mktModal');
+
+function openMarketplace() {
+    var g = document.getElementById('mktGrid');
+    g.innerHTML = '';
+    mktTools.forEach(function(m) {
+        var d = document.createElement('div');
+        d.className = 'mkt-card';
+        d.innerHTML = '<div class="mkt-card-icon">' + m.icon + '</div><div class="mkt-card-name">' + m
+            .name + '</div><button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center" onclick="showToast(\'Demo: Request sent for ' +
+            m.name + '\',\'info\')">Request Access</button>';
+        g.appendChild(d);
+    });
+    openModal('mktModal');
 }
 
 // ===== ASSISTANTS =====
-function renderAssistants(){
-  var g=document.getElementById('assistantGrid');
-  // keep existing dynamic ones
-  var existing=g.querySelectorAll('[data-dyn]');
-  g.innerHTML='';
-  assistantsData.forEach(function(a){
-    appendAssistantCard(g,a,false);
-  });
-  existing.forEach(function(el){g.appendChild(el);});
+function renderAssistants() {
+    var g = document.getElementById('assistantGrid');
+    var existing = g.querySelectorAll('[data-dyn]');
+    g.innerHTML = '';
+    assistantsData.forEach(function(a) {
+        appendAssistantCard(g, a, false);
+    });
+    existing.forEach(function(el) { g.appendChild(el); });
 }
-function appendAssistantCard(g,a,dyn){
-  var d=document.createElement('div');d.className='assistant-card';if(dyn)d.setAttribute('data-dyn','1');
-  var tagsHtml=a.tags.map(function(t){return'<span class="tag">'+t+'</span>';}).join('');
-  d.innerHTML='<div class="assistant-icon" style="background:'+a.iconBg+'"><i class="'+a.icon+'" style="color:#fff"></i></div><div><div class="assistant-name">'+a.name+'</div></div><div class="assistant-tags">'+tagsHtml+'</div><button class="btn btn-secondary btn-sm" style="margin-top:4px" onclick="showToast(\'Opening '+a.name+' (Demo)\',\'info\')"><i class="fas fa-arrow-right"></i> Open Assistant</button>';
-  g.appendChild(d);
+
+function appendAssistantCard(g, a, dyn) {
+    var d = document.createElement('div');
+    d.className = 'assistant-card';
+    if (dyn) d.setAttribute('data-dyn', '1');
+    var tagsHtml = a.tags.map(function(t) { return '<span class="tag">' + t + '</span>'; }).join('');
+    d.innerHTML = '<div class="assistant-icon" style="background:' + a.iconBg + '"><i class="' + a.icon +
+        '" style="color:#fff"></i></div><div><div class="assistant-name">' + a.name +
+        '</div></div><div class="assistant-tags">' + tagsHtml +
+        '</div><button class="btn btn-secondary btn-sm" style="margin-top:4px" onclick="showToast(\'Opening ' +
+        a.name + ' (Demo)\',\'info\')"><i class="fas fa-arrow-right"></i> Open Assistant</button>';
+    g.appendChild(d);
 }
 renderAssistants();
 
-function createAssistant(){
-  var name=document.getElementById('asstName').value.trim();
-  if(!name){showToast('Please enter an assistant name','error');return;}
-  var prompt=document.getElementById('asstPrompt').value;
-  var model=document.getElementById('asstModel').value;
-  var colors=['linear-gradient(135deg,#1a3a2a,#065f46)','linear-gradient(135deg,#3a1a2a,#9f1239)','linear-gradient(135deg,#1a2a3a,#1e3a5f)'];
-  var icons=['fas fa-robot','fas fa-brain','fas fa-magic','fas fa-comments'];
-  var a={id:'dyn_'+Date.now(),name:name,
-    tags:[prompt==='support'?'Support':'Blog',modelLabels[model],'New'],
-    icon:icons[Math.floor(Math.random()*icons.length)],
-    iconBg:colors[Math.floor(Math.random()*colors.length)]
-  };
-  appendAssistantCard(document.getElementById('assistantGrid'),a,true);
-  closeModal('newAssistantModal');
-  document.getElementById('asstName').value='';
-  showToast('Assistant "'+name+'" created (demo)','success');
+function createAssistant() {
+    var name = document.getElementById('asstName').value.trim();
+    if (!name) { showToast('Please enter an assistant name', 'error'); return; }
+    var prompt = document.getElementById('asstPrompt').value;
+    var model = document.getElementById('asstModel').value;
+    var colors = ['linear-gradient(135deg,#1a3a2a,#065f46)', 'linear-gradient(135deg,#3a1a2a,#9f1239)',
+        'linear-gradient(135deg,#1a2a3a,#1e3a5f)'
+    ];
+    var icons = ['fas fa-robot', 'fas fa-brain', 'fas fa-magic', 'fas fa-comments'];
+    var a = {
+        id: 'dyn_' + Date.now(),
+        name: name,
+        tags: [prompt === 'support' ? 'Support' : 'Blog', modelLabels[model], 'New'],
+        icon: icons[Math.floor(Math.random() * icons.length)],
+        iconBg: colors[Math.floor(Math.random() * colors.length)]
+    };
+    appendAssistantCard(document.getElementById('assistantGrid'), a, true);
+    closeModal('newAssistantModal');
+    document.getElementById('asstName').value = '';
+    showToast('Assistant "' + name + '" created (demo)', 'success');
 }
 
 // ===== SETTINGS =====
-function renderSettings(){
-  var s=document.getElementById('settingsSections');s.innerHTML='';
-  // Workspace
-  var c1=makeSettingsCard('Workspace','fas fa-building',[
-    {type:'editable',label:'Workspace Name',desc:'Display name for your organization',val:settings.workspaceName,key:'ws'},
-    {type:'select',label:'Default Model',desc:'Used when no model is specified in a prompt',val:settings.defaultModel,key:'def_model',opts:Object.keys(modelLabels)},
-  ]);
-  // Preferences
-  var c2=makeSettingsCard('Preferences','fas fa-sliders-h',[
-    {type:'toggle',label:'Dark Mode',desc:'Switch between dark and light interface',val:settings.darkMode,key:'dark_mode'},
-    {type:'toggle',label:'Auto-save Prompts',desc:'Automatically save edits every 30 seconds',val:settings.autoSave,key:'auto_save'},
-  ]);
-  // API Keys
-  var c3=makeSettingsCard('API Keys','fas fa-key',[
-    {type:'key',label:'OpenAI API Key',desc:'Used for GPT-4 Turbo calls',val:settings.apiKeys.openai,key:'openai'},
-    {type:'key',label:'Anthropic API Key',desc:'Used for Claude 3 Opus calls',val:settings.apiKeys.anthropic,key:'anthropic'},
-    {type:'key',label:'Google AI Key',desc:'Used for Gemini Pro 1.5 calls',val:settings.apiKeys.google,key:'google'},
-  ]);
-  s.appendChild(c1);s.appendChild(c2);s.appendChild(c3);
+function renderSettings() {
+    var s = document.getElementById('settingsSections');
+    s.innerHTML = '';
+    var c1 = makeSettingsCard('Workspace', 'fas fa-building', [
+        { type: 'editable', label: 'Workspace Name', desc: 'Display name for your organization',
+            val: settings.workspaceName, key: 'ws' },
+        { type: 'select', label: 'Default Model', desc: 'Used when no model is specified in a prompt',
+            val: settings.defaultModel, key: 'def_model', opts: Object.keys(modelLabels) },
+    ]);
+    var c2 = makeSettingsCard('Preferences', 'fas fa-sliders-h', [
+        { type: 'toggle', label: 'Dark Mode', desc: 'Switch between dark and light interface', val: settings
+                .darkMode, key: 'dark_mode' },
+        { type: 'toggle', label: 'Auto-save Prompts', desc: 'Automatically save edits every 30 seconds',
+            val: settings.autoSave, key: 'auto_save' },
+    ]);
+    var c3 = makeSettingsCard('API Keys', 'fas fa-key', [
+        { type: 'key', label: 'OpenAI API Key', desc: 'Used for GPT-4 Turbo calls', val: settings.apiKeys
+                .openai, key: 'openai' },
+        { type: 'key', label: 'Anthropic API Key', desc: 'Used for Claude 3 Opus calls', val: settings.apiKeys
+                .anthropic, key: 'anthropic' },
+        { type: 'key', label: 'Google AI Key', desc: 'Used for Gemini Pro 1.5 calls', val: settings.apiKeys
+                .google, key: 'google' },
+    ]);
+    s.appendChild(c1);
+    s.appendChild(c2);
+    s.appendChild(c3);
 }
-function makeSettingsCard(title,icon,rows){
-  var c=document.createElement('div');c.className='settings-card';
-  c.innerHTML='<div class="settings-card-header"><i class="'+icon+'"></i>'+title+'</div>';
-  rows.forEach(function(r){
-    var row=document.createElement('div');row.className='settings-row';
-    var info='<div class="settings-row-info"><div class="settings-row-label">'+r.label+'</div><div class="settings-row-desc">'+r.desc+'</div></div>';
-    var ctrl='';
-    if(r.type==='editable'){
-      ctrl='<span class="settings-row-val" id="val_'+r.key+'">'+r.val+'</span><button class="btn btn-secondary btn-sm" onclick="inlineEdit(\''+r.key+'\')"><i class="fas fa-edit"></i> Edit</button>';
-    } else if(r.type==='select'){
-      var opts=r.opts.map(function(o){return'<option value="'+o+'"'+(o===r.val?' selected':'')+'>'+modelLabels[o]+'</option>';}).join('');
-      ctrl='<select class="form-input form-select" style="width:160px" onchange="saveSetting(\''+r.key+'\',this.value)">'+opts+'</select>';
-    } else if(r.type==='toggle'){
-      var chk=r.val?'checked':'';
-      ctrl='<label class="toggle-wrap"><input type="checkbox" class="toggle-input" '+chk+' onchange="saveSetting(\''+r.key+'\',this.checked)"><span class="toggle-label"></span></label>';
-    } else if(r.type==='key'){
-      var masked=r.val?r.val.substring(0,8)+'••••••••••':'Not set';
-      ctrl='<span class="masked-key" id="kval_'+r.key+'">'+masked+'</span><button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="openApiKeyModal(\''+r.key+'\')"><i class="fas fa-cog"></i> Manage</button>';
+
+function makeSettingsCard(title, icon, rows) {
+    var c = document.createElement('div');
+    c.className = 'settings-card';
+    c.innerHTML = '<div class="settings-card-header"><i class="' + icon + '"></i>' + title + '</div>';
+    rows.forEach(function(r) {
+        var row = document.createElement('div');
+        row.className = 'settings-row';
+        var info = '<div class="settings-row-info"><div class="settings-row-label">' + r.label +
+            '</div><div class="settings-row-desc">' + r.desc + '</div></div>';
+        var ctrl = '';
+        if (r.type === 'editable') {
+            ctrl = '<span class="settings-row-val" id="val_' + r.key + '">' + r.val +
+                '</span><button class="btn btn-secondary btn-sm" onclick="inlineEdit(\'' + r.key +
+                '\')"><i class="fas fa-edit"></i> Edit</button>';
+        } else if (r.type === 'select') {
+            var opts = r.opts.map(function(o) { return '<option value="' + o + '"' + (o === r.val ?
+                    ' selected' : '') + '>' + modelLabels[o] + '</option>'; }).join('');
+            ctrl = '<select class="form-input form-select" style="width:160px" onchange="saveSetting(\'' + r
+                .key + '\',this.value)">' + opts + '</select>';
+        } else if (r.type === 'toggle') {
+            var chk = r.val ? 'checked' : '';
+            ctrl = '<label class="toggle-wrap"><input type="checkbox" class="toggle-input" ' + chk +
+                ' onchange="saveSetting(\'' + r.key + '\',this.checked)"><span class="toggle-label"></span></label>';
+        } else if (r.type === 'key') {
+            var masked = r.val ? r.val.substring(0, 8) + '••••••••••' : 'Not set';
+            ctrl = '<span class="masked-key" id="kval_' + r.key + '">' + masked +
+                '</span><button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="openApiKeyModal(\'' +
+                r.key + '\')"><i class="fas fa-cog"></i> Manage</button>';
+        }
+        row.innerHTML = info + ctrl;
+        c.appendChild(row);
+    });
+    return c;
+}
+
+function saveSetting(key, val) {
+    if (key === 'dark_mode') {
+        settings.darkMode = val;
+        document.body.classList.toggle('light-mode', !val);
+        localStorage.setItem('dark_mode', val ? 'true' : 'false');
+        showToast(val ? 'Dark mode enabled' : 'Light mode enabled', 'info');
+    } else if (key === 'auto_save') {
+        settings.autoSave = val;
+        localStorage.setItem('auto_save', val ? 'true' : 'false');
+        showToast('Auto-save ' + (val ? 'enabled' : 'disabled'), 'info');
+    } else if (key === 'def_model') {
+        settings.defaultModel = val;
+        localStorage.setItem('def_model', val);
+        showToast('Default model set to ' + modelLabels[val], 'success');
     }
-    row.innerHTML=info+ctrl;
-    c.appendChild(row);
-  });
-  return c;
 }
-function saveSetting(key,val){
-  if(key==='dark_mode'){
-    settings.darkMode=val;
-    document.body.classList.toggle('light-mode',!val);
-    localStorage.setItem('dark_mode',val?'true':'false');
-    showToast(val?'Dark mode enabled':'Light mode enabled','info');
-  } else if(key==='auto_save'){
-    settings.autoSave=val;
-    localStorage.setItem('auto_save',val?'true':'false');
-    showToast('Auto-save '+(val?'enabled':'disabled'),'info');
-  } else if(key==='def_model'){
-    settings.defaultModel=val;
-    localStorage.setItem('def_model',val);
-    showToast('Default model set to '+modelLabels[val],'success');
-  }
+
+function inlineEdit(key) {
+    var span = document.getElementById('val_' + key);
+    if (!span) return;
+    var cur = span.textContent;
+    var inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'inline-edit-input';
+    inp.value = cur;
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-primary btn-sm';
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    btn.onclick = function() {
+        var v = inp.value.trim() || cur;
+        if (key === 'ws') { settings.workspaceName = v;
+            localStorage.setItem('ws_name', v); }
+        span.textContent = v;
+        span.style.display = '';
+        inp.replaceWith(span);
+        btn.remove();
+        showToast('Workspace name updated', 'success');
+    };
+    inp.onkeydown = function(e) {
+        if (e.key === 'Enter') btn.click();
+        if (e.key === 'Escape') { span.style.display = '';
+            inp.replaceWith(span);
+            btn.remove(); }
+    };
+    span.style.display = 'none';
+    span.parentNode.insertBefore(inp, span.nextSibling);
+    span.parentNode.insertBefore(btn, inp.nextSibling);
+    inp.focus();
+    inp.select();
 }
-function inlineEdit(key){
-  var span=document.getElementById('val_'+key);
-  if(!span)return;
-  var cur=span.textContent;
-  var inp=document.createElement('input');
-  inp.type='text';inp.className='inline-edit-input';inp.value=cur;
-  var btn=document.createElement('button');btn.className='btn btn-primary btn-sm';btn.innerHTML='<i class="fas fa-check"></i>';
-  btn.onclick=function(){
-    var v=inp.value.trim()||cur;
-    if(key==='ws'){settings.workspaceName=v;localStorage.setItem('ws_name',v);}
-    span.textContent=v;
-    span.style.display='';
-    inp.replaceWith(span);btn.remove();
-    showToast('Workspace name updated','success');
-  };
-  inp.onkeydown=function(e){if(e.key==='Enter')btn.click();if(e.key==='Escape'){span.style.display='';inp.replaceWith(span);btn.remove();}};
-  span.style.display='none';
-  span.parentNode.insertBefore(inp,span.nextSibling);
-  span.parentNode.insertBefore(btn,inp.nextSibling);
-  inp.focus();inp.select();
+
+function openApiKeyModal(key) {
+    curApiKeyField = key;
+    var labels = { openai: 'OpenAI API Key', anthropic: 'Anthropic API Key', google: 'Google AI Key' };
+    document.getElementById('apiKeyTitle').textContent = 'Manage ' + labels[key];
+    document.getElementById('apiKeyInput').value = settings.apiKeys[key] || '';
+    openModal('apiKeyModal');
 }
-function openApiKeyModal(key){
-  curApiKeyField=key;
-  var labels={openai:'OpenAI API Key',anthropic:'Anthropic API Key',google:'Google AI Key'};
-  document.getElementById('apiKeyTitle').textContent='Manage '+labels[key];
-  document.getElementById('apiKeyInput').value=settings.apiKeys[key]||'';
-  openModal('apiKeyModal');
-}
-function saveApiKey(){
-  var val=document.getElementById('apiKeyInput').value.trim();
-  settings.apiKeys[curApiKeyField]=val;
-  localStorage.setItem('key_'+curApiKeyField,val);
-  var masked=val?val.substring(0,8)+'••••••••••':'Not set';
-  var el=document.getElementById('kval_'+curApiKeyField);
-  if(el)el.textContent=masked;
-  closeModal('apiKeyModal');
-  showToast('API key saved (demo – browser only)','success');
+
+function saveApiKey() {
+    var val = document.getElementById('apiKeyInput').value.trim();
+    settings.apiKeys[curApiKeyField] = val;
+    localStorage.setItem('key_' + curApiKeyField, val);
+    var masked = val ? val.substring(0, 8) + '••••••••••' : 'Not set';
+    var el = document.getElementById('kval_' + curApiKeyField);
+    if (el) el.textContent = masked;
+    closeModal('apiKeyModal');
+    showToast('API key saved (demo – browser only)', 'success');
 }
 renderSettings();
 
 // Adjust editor grid on small screens
-function checkEditorGrid(){
-  var w=window.innerWidth;
-  var g=document.getElementById('editorGrid');
-  if(g)g.style.gridTemplateColumns=w<700?'1fr':'1fr 1fr';
+function checkEditorGrid() {
+    var w = window.innerWidth;
+    var g = document.getElementById('editorGrid');
+    if (g) g.style.gridTemplateColumns = w < 700 ? '1fr' : '1fr 1fr';
 }
-window.addEventListener('resize',checkEditorGrid);checkEditorGrid();
+window.addEventListener('resize', checkEditorGrid);
+checkEditorGrid();
 </script>
 </body>
 </html>
